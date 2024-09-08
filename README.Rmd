@@ -28,7 +28,7 @@ You can install the development version of auditlogR from [GitHub](https://githu
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("Full-Fibre/auditlogR")
+devtools::install_github("FzliangFrank/sandy-movement)
 ```
 
 ## Example
@@ -93,31 +93,4 @@ join(inc_flow, out_flow) |>
   mutate(netflow =coalesce(.in_flow,0) - coalesce(.out_flow,0))
 ```
 
-
-
-
-```{r}
-my_log = make_fakelog(4, 12, 1, n_status=4)
-audit_log=new_auditLog(
-  my_log,
-  id=id,
-  from=from,to=to,logtime=logtime
-  )
-audit_log |> 
-  consistency() |> 
-  filter(!.consistent)
-```
-
-Inconsistency can be visualise
-
-```{r}
-audit_log |> 
-  reduce_noise('month') |> 
-  report_history() |> 
-  plot()
-```
-
-```{r}
-
-```
 
