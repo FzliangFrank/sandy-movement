@@ -1,0 +1,114 @@
+
+## If object is created, then the first time being created should be logged as 
+## creation status such as NEW instead of the first NULL status
+
+library(tidyverse)
+theme_set(theme_bw())
+## okay I need to revise how a lot is faked
+## actaully make sense to generate radom log to follow particular distribution
+df = make_fakelog(1e3)
+## has 100 object now
+change_prequency = df |> 
+  group_by(id) |> 
+  mutate(last_time = lag(logtime, order_by = logtime)) |> 
+  mutate(time_delta = logtime - last_time) |> 
+  filter(!is.na(from))
+
+## radom sample 1:9 given mean of status change frequency loc:
+loc = (1 + 9)/2
+## n number frequency is random sampled from 365 days
+## the mean of frequency should be normally distributed (because from same uniform distribution)
+## the average days between status change is now this
+avg_day_change = 365/loc
+
+## Statistics Experiment =================================
+
+plot_against_nrml = function(x) {
+  n = length(x)
+  norm_x = rnorm(n, mean(x), sd(x))
+  ggplot() + 
+    geom_density(data = data.frame(x),aes(x=x), color="blue",linewidth=1) + 
+    geom_density(data = data.frame(norm_x), aes(x = norm_x), color="black",linetype = "dashed") + 
+    theme(
+      title = ggtext::element_markdown()
+    ) + 
+    ggtitle("<b>normal</b> against <b style='color:blue'>x</b>") 
+}
+
+plot_against_exp = function(x) {
+  n = length(x)
+  norm_x = rexp(n, mean(x))
+  ggplot() + 
+    geom_density(data = data.frame(x),aes(x=x), color="blue",linewidth=1) + 
+    geom_density(data = data.frame(norm_x), aes(x = norm_x), color="black",linetype = "dashed") + 
+    theme(
+      title = ggtext::element_markdown()
+    ) + 
+    ggtitle("<b>exponential</b> against <b style='color:blue'>x</b>") 
+}
+
+
+## (1) Are uniform sample interval exponential or normal? 
+n = 1e4
+x = runif(n)
+diff_x = (x - lag(x))[-1]
+norm_x = rnorm(n, mean(delta), sd(delta))
+plot_against_nrml(norm_x) + 
+  ggtitle("<b>normal</b> against <b style='color:blue'>x: runif unsorted</b>") 
+
+## (2) Are uniform sample interval exponential or normal? 
+## this type with sorting
+n = 1e3
+x = sort(runif(n))
+diff_x = (x - lag(x))[-1]
+plot_against_nrml(diff_x) + 
+  ggtitle("<b>normal</b> against <b style='color:blue'>x: runif sorted</b>") 
+
+## (3) instead of runif just sample from a vector
+n = 1e3
+x = sort(sample(1:(n*10), n,replace = T))
+diff_x = (x - lag(x))[-1]
+plot_against_nrml(diff_x) +
+  ggtitle("<b>normal</b> against <b style='color:blue'>x: sample from a fector</b>")
+
+## now use the similar tool to inspect stochestic status log
+change_prequency |> 
+  pull(time_delta) |> 
+  as.numeric() |> 
+  plot_against_nrml()
+## looks acceptable
+
+## it is possible to try approximate distribution of different path
+## and use distribution to re-sample /predict time_delta
+
+## first let's create a graph
+## Status graph may look like this is simply because the process is stochestic
+library(ggraph)
+change_prequency |> 
+  mutate(total_n = n()) |> 
+  group_by(from, to) |> 
+  summarise(
+    median_td = median(time_delta),
+    sd = sd(time_delta),
+    total_n = first(total_n),
+    n = n()
+  ) |>
+  tidygraph::as_tbl_graph() |> 
+  ggraph() +
+  geom_node_label(aes(label = name)) + 
+  geom_edge_bend(aes(width = n),arrow = arrow(type="closed"), alpha = 0.1)
+
+
+## Then possible to create distribution for each edge type
+change_prequency |> 
+  mutate(label = paste(from ,"->",to)) |> 
+  ggplot() + 
+  facet_wrap(~label) + 
+  geom_histogram(aes(x = time_delta)) + 
+  ggtitle("Distribution of Time in Each Sample")
+
+## The most random state is stochestic and full graph
+
+
+
+

@@ -1,0 +1,123 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# auditlogR
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+The goal of auditlogR is to ...
+
+Help you process audit log easier with R engine.
+
+## Installation
+
+You can install the development version of auditlogR from [GitHub](https://github.com/) with:
+
+``` r
+# install.packages("devtools")
+devtools::install_github("Full-Fibre/auditlogR")
+```
+
+## Example
+
+This package let you analysis audit log in a few simple syntax
+
+```{r example}
+library(sandystatus)
+## basic example code
+```
+
+
+```{r}
+my_log = make_fakelog(5, 7, 0)
+my_log
+```
+
+
+`new_auditLog` create a S3 class
+```{r}
+audit_log=new_auditLog(
+  my_log,
+  id=id,
+  from=from,to=to,logtime=logtime
+  )
+audit_log |> class()
+```
+
+
+`reduce_noise` aggregate log into period. Then can perform S3 Method on this object
+
+```{r}
+# aggergate data so one object per month
+audit_log_p = audit_log |> 
+  reduce_noise('month')
+```
+
+```{r}
+# over all function
+audit_log_p |> 
+  report_increment() |> 
+  plot()
+```
+
+```{r}
+# calculate incoming flow out going flow on the fly
+inc_flow = audit_log_p |> 
+  cal_inflow()
+
+out_flow = audit_log_p |> 
+  cal_outflow()
+
+net_flow = audit_log_p |> 
+  cal_netflow()
+
+class(net_flow)
+```
+
+Flow object have `join` method. You can concatinate easily to calcluate netflow
+```{r}
+join(inc_flow, out_flow) |> 
+  mutate(netflow =coalesce(.in_flow,0) - coalesce(.out_flow,0))
+```
+
+
+
+
+```{r}
+my_log = make_fakelog(4, 12, 1, n_status=4)
+audit_log=new_auditLog(
+  my_log,
+  id=id,
+  from=from,to=to,logtime=logtime
+  )
+audit_log |> 
+  consistency() |> 
+  filter(!.consistent)
+```
+
+Inconsistency can be visualise
+
+```{r}
+audit_log |> 
+  reduce_noise('month') |> 
+  report_history() |> 
+  plot()
+```
+
+```{r}
+
+```
+

@@ -1,0 +1,19 @@
+
+
+number_of_objects = 4
+maximum_status_change = 9
+reduce_period = 'month'
+fake_log_1=make_fakelog(number_of_objects, max_freq = maximum_status_change, n_error=0)
+fake_log_2=make_fakelog(number_of_objects, max_freq = maximum_status_change, n_error=0)
+
+fake_log_1$category <- c('A')
+fake_log_2$category <- c('B')
+
+net_flow=bind_rows(fake_log_1,fake_log_2) |> 
+  new_auditLog(id,from,to,logtime) |> 
+  reduce_noise(reduce_period) |> 
+  group_by(category) |> 
+  cal_netflow()
+net_flow |> class()
+
+net_flow

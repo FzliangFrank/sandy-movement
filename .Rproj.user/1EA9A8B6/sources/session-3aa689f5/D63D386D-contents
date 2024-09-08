@@ -1,0 +1,164 @@
+test_that("Tesing flows can be correctly generated when log is complete and valid", {
+  # below used for test
+  number_of_objects = 4
+  maximum_status_change = 9
+  reduce_period = 'month'
+  fake_log=make_fakelog(number_of_objects, max_freq = maximum_status_change, n_error=0)
+  netflow=try({
+    fake_log |>
+      new_auditLog(
+        id=id,from=from,to=to,logtime=logtime
+      ) |>
+      reduce_noise(reduce_period) |>
+      cal_netflow()
+  })
+  if(netflow |> inherits('try-error')) {
+    fail('Message failed because netflow has not been generated')
+  }
+
+  netflow |>
+    group_by(.state) |>
+    arrange(.state,.period) |>
+    mutate(n_state = cumsum(.net_flow)) |>
+    ungroup() -> history_state
+
+  expect_true(all(history_state$n_state <= maximum_status_change))
+  expect_true(all(history_state$n_state >= 0))
+
+
+  history_state |>
+    group_by(.period) |>
+    summarise(n_obj = sum(n_state)) -> creation_curve
+
+  fake_log |>
+    group_by(id) |>
+    arrange(logtime) |>
+    slice_head(n=1) |>
+    ungroup() |>
+    rename(create_time = logtime) |>
+    mutate(create_month = lubridate::floor_date(create_time, reduce_period)) |>
+    # select(create_month) |>
+    mutate(n =1) |>
+    arrange(create_month) |>
+    mutate(n_obj=cumsum(n)) |>
+    group_by(create_month) |>
+    slice_tail(n=1) |>
+    select(create_month, n_obj) -> tho_creation_cruve
+
+  full_join(
+    creation_curve,
+    tho_creation_cruve,
+    by=c(".period"="create_month", "n_obj"="n_obj")
+  ) -> merged
+
+  expect_true(
+    all(!is.na(merged$`.period`)) && all(!is.na(merged$n_obj))
+  )
+})
+
+test_that('Group by Object works',{
+  # below used for test
+  number_of_objects = 4
+  maximum_status_change = 9
+  reduce_period = 'month'
+  fake_log_1=make_fakelog(number_of_objects, max_freq = maximum_status_change, n_error=0)
+  fake_log_2=make_fakelog(number_of_objects, max_freq = maximum_status_change, n_error=0)
+  c=bind_rows(fake_log_1,fake_log_2) %>%
+    mutate(category=sample(c('A','B'),size=nrow(.), replace=T )) |> 
+    as_tibble() |> 
+    new_auditLog(id,from,to,logtime) |> 
+    reduce_noise(reduce_period) |> 
+    group_by(category)
+  expect_true(
+    c |> inherits('periodAuditlog')
+  )
+})
+
+test_that('Reporter Works on Grouped Dataframe',{
+  # below used for test
+  number_of_objects = 4
+  maximum_status_change = 9
+  reduce_period = 'month'
+  fake_log_1=make_fakelog(number_of_objects, max_freq = maximum_status_change, n_error=0)
+  fake_log_2=make_fakelog(number_of_objects, max_freq = maximum_status_change, n_error=0)
+  
+  fake_log_1$category <- c('A')
+  fake_log_2$category <- c('B')
+  
+  c=bind_rows(fake_log_1,fake_log_2) %>%
+    new_auditLog(id,from,to,logtime) |> 
+    reduce_noise(reduce_period) |> 
+    group_by(category) |>
+    report_increment() |>
+    arrange(category,.period) |> 
+    relocate(category)
+  
+  a = fake_log_1 |> 
+    new_auditLog(id,from,to,logtime) |> 
+    reduce_noise(reduce_period) |> 
+    report_increment() |> 
+    mutate(category='A')
+  
+  b = fake_log_2 |> 
+    new_auditLog(id,from,to,logtime) |> 
+    reduce_noise(reduce_period) |> 
+    report_increment() |> 
+    mutate(category='B')
+  
+  d = bind_rows(a,b) |> 
+    arrange(category,.period) |> 
+    relocate(category)
+  
+  full_join(
+    c,d, by=c('.period','.state','category')
+  ) |> 
+    select('.period','.state',.increment.x,.increment.y) |> 
+    filter(.increment.x!=.increment.y)
+})
+
+testthat::test_that('Consistency work after group by work',{
+  # below used for test
+  number_of_objects = 4
+  maximum_status_change = 9
+  reduce_period = 'month'
+  n_error=1
+  fake_log_1=make_fakelog(number_of_objects, max_freq = maximum_status_change, n_error=n_error)
+  fake_log_2=make_fakelog(number_of_objects, max_freq = maximum_status_change, n_error=n_error)
+  
+  fake_log_1$category <- c('A')
+  fake_log_2$category <- c('B')
+  
+  myaglog_p=bind_rows(fake_log_1,fake_log_2) %>%
+    as_tibble() |> 
+    new_auditLog(id,from,to,logtime) |> 
+    reduce_noise('month')
+  stopifnot(myaglog_p |> is.periodAuditlog())
+  myaglog_p |> 
+    # group_by(category) |>
+    consistency() |>
+    mutate(
+      was_added = .to,# in the end this effect needs to be reversed
+      was_removed = lag(.to, order_by=.logtime),# same as above
+      could_removed = .from, # this effect could be added
+      could_add = lead(.from, order_by=.logtime)
+    ) |># sloop::s3_dispatch()
+    expect_s3_class('periodAuditlog')
+})
+
+test_that('Updated version of tidyr flow',{
+  number_of_objects = 4
+  maximum_status_change = 9
+  reduce_period = 'month'
+  fake_log_1=make_fakelog(number_of_objects, max_freq = maximum_status_change, n_error=0)
+  fake_log_2=make_fakelog(number_of_objects, max_freq = maximum_status_change, n_error=0)
+  
+  fake_log_1$category <- c('A')
+  fake_log_2$category <- c('B')
+  
+  c=bind_rows(fake_log_1,fake_log_2) %>%
+    new_auditLog(id,from,to,logtime) |> 
+    reduce_noise(reduce_period) |> 
+    group_by(category) |> 
+    cal_netflow()
+})
+
