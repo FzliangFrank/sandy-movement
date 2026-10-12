@@ -133,8 +133,6 @@ summary.log = function(change_prequency) {
       n = n()
     )
 }
-change_freq_smry=change_prequency |>
-  summary.log()
 ## use grid method to study posterior distribution
 freq_posterior.log = function(
       change_freq_smry
@@ -154,20 +152,27 @@ freq_posterior.log = function(
     mutate(posterior = likelyhood / sum(likelyhood))
   return(freq_pst_grid)
 }
+change_freq_smry=change_prequency |>
+  summary.log()
 p_grid = (1:grid_rs/grid_rs)[1:(grid_rs/.shrink_)]
 freq_pst_grid = change_freq_smry |> 
   freq_posterior.log()
 
-plot.freq_posterior = function(freq_pst_grid) {
+plot.freq_posterior = function(freq_pst_grid, shadow = T) {
+  if(shadow) {
+    geom_shaw_ = (list(geom_line(
+      data=freq_pst_grid |> mutate(label1 = paste(from,to))
+      , aes(x = p, y= posterior, group = label1),color="grey",alpha=0.4,linewidth=0.4
+    )))
+  } else {
+    geom_shaw_ = list(NULL)
+  }
   freq_pst_grid |> 
     mutate(label = paste(from , "->", to)) |> 
     filter(posterior != 0) |> 
     filter(!is.na(posterior)) |> 
     ggplot(aes(x = p, y= posterior)) + 
-    geom_line(
-      data=freq_pst_grid |> mutate(label1 = paste(from,to))
-      , aes(x = p, y= posterior, group = label1),color="grey",alpha=0.4,linewidth=0.4
-    ) +
+    geom_shaw_ +
     geom_line() +
     facet_wrap(~label,scales="free")
 }
@@ -177,7 +182,7 @@ freq_pst_grid |> plot.freq_posterior() +
 
 ### we can possiblely try one with schema just to see what difference it makes
 library(igraph)
-n_particle = 500
+n_particle = 1000
 
 state_schema = igraph::graph_from_literal(1 -+ 2 -+ 3:4,4-+5)
 ## either sample terminals or sample intermediate terminals
@@ -199,7 +204,7 @@ log |>
   time_delta.log() |> 
   summary.log() |> 
   freq_posterior.log() |> 
-  plot.freq_posterior() +
+  plot.freq_posterior(shadow = T) +
   ggtitle("Natural Progressing Status Log: Posterial of Edge"
           , stringr::str_replace_all(stringr::str_wrap(
             width = 80
@@ -222,7 +227,7 @@ log |>
   time_delta.log() |> 
   summary.log() |> 
   freq_posterior.log(from_n) |> 
-  plot.freq_posterior() +
+  plot.freq_posterior(T) +
   ggtitle("Natural Progressing Status Log: Posterior of Possible Status"
           , stringr::str_replace_all(stringr::str_wrap(
             width = 80
@@ -248,12 +253,34 @@ log |>
 ## Eventually we get a posterior tell us, 50% of the time it move 2->3 and 50%
 ## of the time 2->4
 
+
 ## So when do the status do not move at all?
 ## An interesting question to think about is perhaps
 ## This also creating the problem where status could stagnate or could other wise 
-## not able to progress forward.
+## not able to progress forward
 
 
+## Define a confidence interval? ======================================
+## first you need a validation matrix
+valid_edge = state_schema |> 
+  as_edgelist() |> 
+  data.frame()
+names(valid_edge) <- c("from","to")
+valid_edge["valid"] <- TRUE
+
+noisy_log.smry = noisy_log |> 
+  time_delta.log() |> 
+  summary.log()
+noisy_log.smry |> 
+  filter(from == 2 & to == 1)
+noisy_log.smry |> 
+  freq_posterior.log(total_n = to_n) |> 
+  attach_score.posterior(valid_edge) |> 
+  filter(from == 2 & to == 1)
+noisy_log.smry |> 
+  filter(from == 1)
+
+noisy_log.smry
 
 
 

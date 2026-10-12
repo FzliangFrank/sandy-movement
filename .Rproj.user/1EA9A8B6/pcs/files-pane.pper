@@ -3,7 +3,11 @@
         {
             "columnIndex": 2,
             "ascending": true
+        },
+        {
+            "columnIndex": 3,
+            "ascending": false
         }
     ],
-    "path": "~/Library/CloudStorage/Dropbox/Personal/Code/Pet Project/09-06 Sandy-Status/sandy-status"
+    "path": "~/Library/CloudStorage/Dropbox/Personal/Code/Pet Project/2024/09-06 Sandy-Status/sandy-status/vignettes"
 }

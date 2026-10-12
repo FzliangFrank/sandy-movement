@@ -1,6 +1,6 @@
-## This script for use to generat fake data used for audit log
+## This script for use to general fake data used for audit log
 
-#' Generage 1 Fake Log
+#' Generate 1 Fake Log
 #' @details Should not be called directly
 #' @param fake_id what you use for object id
 #' @param freq number of audit log that one object should pass through.
@@ -86,3 +86,5 @@ validate_incflow = function(netflow) {
     all(!is.na(merged$`.period`)) && all(!is.na(merged$n_obj))
   )
 }
+
+

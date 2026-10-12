@@ -27,18 +27,20 @@ new_auditLog <- function(
     ))
   }
   
-  ## 
+  ## just reserve a few column for input status
   x = dbi |>
     rename(.id = {{id}},
-           .from={{from}},
+           .from ={{from}},
            .to = {{to}},
            .logtime={{logtime}}
     )
+  ## so always has a weight
   if(!missing(weight)) {
     x = mutate(x, .weight={{weight}})
   } else {
     x = mutate(x, .weight=1)
   }
+  ## a
   
   if(!missing(period)) {
     stopifnot(P %in% c('month','day','week','year'))
@@ -84,6 +86,9 @@ reduce_noise.auditLog <- function(x, P='month') {
   as_periodAuditlog(obj, P)
 }
 
+
+## [OVERHAUL] ============================
+## Everything down below need overhaul so that see more gradular product
 #' 3. Net Flow =================================================================
 #' @name NetFlow
 #' @details

@@ -152,7 +152,7 @@ ungroup.periodAuditlog <- function(x,...) {
   return(as_periodAuditlog(rn, P))
   
 }
-ungroup.auditlogFlows <- function(x) {
+ungroup.auditlogFlows <- function(x,...) {
   rn=NextMethod('ungroup',x)
   return(as_auditlogFlows(rn))
 }
